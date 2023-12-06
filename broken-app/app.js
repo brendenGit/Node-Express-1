@@ -1,18 +1,40 @@
 const express = require('express');
-let axios = require('axios');
-var app = express();
+const { getData } = require('./middleware');
 
-app.post('/', function(req, res, next) {
+
+const app = express();
+app.use(express.json());
+
+
+app.post('/', async function (req, res, next) {
   try {
-    let results = req.body.developers.map(async d => {
-      return await axios.get(`https://api.github.com/users/${d}`);
-    });
-    let out = results.map(r => ({ name: r.data.name, bio: r.data.bio }));
-
-    return res.send(JSON.stringify(out));
+    const developers = req.body.developers;
+    const results = await getData(developers);
+    return res.status(200).json(results);
   } catch {
     next(err);
-  }
+  };
 });
 
-app.listen(3000);
+
+// 404 handler
+app.use(function (req, res, next) {
+  const notFoundError = new ExpressError("Not Found", 404);
+  return next(notFoundError);
+});
+
+
+// generic error handler
+app.use(function (err, req, res, next) {
+  // the default status is 500 Internal Server Error
+  let status = err.status || 500;
+  let message = err.msg;
+
+  // set the status and alert the user
+  return res.status(status).json({
+    error: { message, status }
+  });
+});
+
+
+module.exports = app;
